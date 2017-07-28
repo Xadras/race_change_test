@@ -21830,13 +21830,13 @@ void Player::ChangeRace(uint8 new_race)
 	if (Player::TeamForRace(new_race) == ALLIANCE && Player::TeamForRace(old_race) == HORDE)
 	{
 		for (uint8 i = 0; i < 6; i++)
-			if (!GetReputationMgr().SwitchReputation(RepCitiesForTeam[1][i],RepCitiesForTeam[2][i]))
+			if (!GetReputationMgr().SwitchReputation(RepCitiesForTeam[0][i],RepCitiesForTeam[1][i]))
 				sLog.outLog(LOG_RACE_CHANGE,"[%u] Problem encountered while changing reputation for horde to alliance conv",GetGUIDLow());
 	}
 	else if (Player::TeamForRace(new_race) == HORDE && Player::TeamForRace(old_race) == ALLIANCE)
 	{
 		for (uint8 i = 0; i < 6; i++)
-			if (!GetReputationMgr().SwitchReputation(RepCitiesForTeam[2][i],RepCitiesForTeam[1][i]))
+			if (!GetReputationMgr().SwitchReputation(RepCitiesForTeam[1][i],RepCitiesForTeam[0][i]))
 				sLog.outLog(LOG_RACE_CHANGE,"[%u] Problem encountered while changing reputation for alliance to horde conv",GetGUIDLow());
 	}
 
