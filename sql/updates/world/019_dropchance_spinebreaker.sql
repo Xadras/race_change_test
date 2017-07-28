@@ -1,0 +1,1 @@
+INSERT INTO `item_loot_template` (`entry`, `item`, `ChanceOrQuestChance`) VALUES ('29569', '34622', '0.1');

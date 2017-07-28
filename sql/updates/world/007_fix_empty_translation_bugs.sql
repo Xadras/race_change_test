@@ -1,0 +1,1 @@
+UPDATE `script_texts` SET content_loc3 = "" where content_loc3 = "0";

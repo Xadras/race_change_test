@@ -1,0 +1,2 @@
+INSERT INTO `locales_item` (`entry`) VALUES ('99974');
+UPDATE `locales_item` SET `name_loc3`='Götze des ewigen Wissens', `description_loc3`='Die Kraft dringt in deinen Geist ein.' WHERE (`entry`='99974');
