@@ -21894,11 +21894,11 @@ void Player::ChangeRace(uint8 new_race)
 
 	//Homebind to shattrath
 	RealmDataDatabase.PExecute("UPDATE character_homebind SET map='%u', zone='%u', position_x='%f', position_y='%f', position_z='%f' WHERE guid='%u'", 0, 4, -11789.0f, -3171.169922f, -29.0f, GUID_LOPART(GetGUID()));
-    m_homebindMapId = 0;
-    m_homebindZoneId = 4;
-    m_homebindX = -11778.870117f;
-    m_homebindY = -3200.828369f;
-    m_homebindZ = -26.389161f;
+    m_homebindMapId = 530;
+    m_homebindZoneId = 3703;
+    m_homebindX = -1838.0f;
+    m_homebindY = 5301.8f;
+    m_homebindZ = -12.4f;
 
     WorldPacket data(SMSG_BINDPOINTUPDATE, (4 + 4 + 4 + 4 + 4));
     data << float(m_homebindX);
