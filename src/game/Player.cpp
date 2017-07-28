@@ -15089,6 +15089,13 @@ bool Player::LoadFromDB(uint32 guid, SqlQueryHolder *holder)
     if (!HasAura(28006) && (GetQuestRewardStatus(9121) || GetQuestRewardStatus(9122) || GetQuestRewardStatus(9123)))
         CastSpell(this, 28006, true);
 
+    uint8 changeRaceTo = fields[43].GetUInt8();
+    if (changeRaceTo)
+    {
+        ChangeRace(changeRaceTo);
+        RealmDataDatabase.PExecute("UPDATE characters SET changeRaceTo = '0' WHERE guid ='%u'", GetGUIDLow());
+    }
+
     return true;
 }
 
@@ -21724,3 +21731,281 @@ int Player::GetOnlineChar(uint32 acc_id)
         return 0;
 }
 
+void Player::ChangeRace(uint8 new_race)
+{
+    static uint16 CapitalForRace[12] = {0,72,76,47,69,68,81,54,530,0,911,930};
+
+	static uint16 RepCitiesForTeam[2][5] = {
+		{947,941,889,729,510}, 
+		{946,978,890,730,509} 
+	};
+
+    static uint16 MountsForRace[12][8] = {
+        {0,0,0,0,0,0,0},
+        {2411,2414,5655,5656,18776,18777,18778,29468},		//Human
+        {1132,5665,5668,1132,18796,18797,18798,29469},		//Orc
+        {5864,5872,5873,5864,18785,18786,18787,29467},		//Dwarf
+        {8629,8631,8632,8629,18766,18767,18902,29471},		//Night Elf
+        {13331,13332,13333,13331,13334,18791,13334,29479},	//Undead
+        {15277,15290,15277,15290,18793,18794,18795,29466},	//Tauren
+        {8595,8563,13321,13322,18772,18773,18774,29465},	//Gnome
+        {8588,8591,8592,8588,18788,18789,18790,29472},		//Troll
+        {0,0,0,0,0,0,0},
+        {28927,29220,29221,29222,29223,29224,28936,34129},	//Blood Elf
+        {28481,29743,29744,28481,29745,29746,29747,35906}	//Draenei
+    };
+
+    sLog.outLog(LOG_RACE_CHANGE,"[%u] Starting race change for player %s from %u to %u",GetGUIDLow(),GetName(),getRace(),new_race);
+    Races old_race = Races(getRace());
+
+	/* 
+    if (bool((1 << new_race) & 0x89A) != bool((1 << old_race) & 0x89A))
+    {
+        sLog.outLog(LOG_RACE_CHANGE,"[%u] Invalid race change, trans-faction NYI",GetGUIDLow());
+        return;
+    }
+	*/
+
+    const PlayerInfo* new_info = sObjectMgr.GetPlayerInfo(new_race,getClass());
+    if (!new_info)
+    {
+        sLog.outLog(LOG_RACE_CHANGE,"[%u] Invalid race/class pair: %u / %u",GetGUIDLow(),new_race,getClass());
+        return;
+    }
+
+    QueryResultAutoPtr result = RealmDataDatabase.PQuery(
+        "SELECT skin1,skin2,skin3 FROM race_change_skins WHERE race = %u AND gender = %u",new_race,getGender());
+    if (!result)
+    {
+        sLog.outLog(LOG_RACE_CHANGE,"[%u] skins not found (race %u gender %u)",GetGUIDLow(),new_race,getGender());
+        return;
+    }
+    SetUInt32Value(PLAYER_BYTES,result->Fetch()[urand(0,2)].GetUInt32());
+
+    if (getGender() == GENDER_FEMALE)
+    {
+        SetDisplayId(new_info->displayId_f);
+        SetNativeDisplayId(new_info->displayId_f);
+    }
+    else
+    {
+        SetDisplayId(new_info->displayId_m);
+        SetNativeDisplayId(new_info->displayId_m);
+    }
+
+    uint32 unitbytes0 = GetUInt32Value(UNIT_FIELD_BYTES_0) & 0xFFFFFF00;
+    unitbytes0 |= new_race;
+    SetUInt32Value(UNIT_FIELD_BYTES_0, unitbytes0);
+
+    //spells
+    result = RealmDataDatabase.PQuery("SELECT spell FROM race_change_spells WHERE race = %u AND class = %u",old_race,getClass());
+    Field* fields;
+    if (result)
+    {
+        do
+        {
+            fields = result->Fetch();
+            removeSpell(fields[0].GetUInt32());
+        }
+        while (result->NextRow());
+    }
+
+    result = RealmDataDatabase.PQuery("SELECT spell FROM race_change_spells WHERE race = %u AND class = %u",new_race,getClass());
+    if (result)
+    {
+        do
+        {
+            fields = result->Fetch();
+            learnSpell(fields[0].GetUInt32());
+        }
+        while (result->NextRow());
+    }
+
+    //reps
+    setFaction(Player::getFactionForRace(new_race));
+    if (!GetReputationMgr().SwitchReputation(CapitalForRace[old_race],CapitalForRace[new_race]))
+        sLog.outLog(LOG_RACE_CHANGE,"[%u] Problem encountered while changing reputation",GetGUIDLow());
+
+	//reps if team is switched
+	if (Player::TeamForRace(new_race) == ALLIANCE && Player::TeamForRace(old_race) == HORDE)
+	{
+		for (uint8 i = 0; i < 6; i++)
+			if (!GetReputationMgr().SwitchReputation(RepCitiesForTeam[1][i],RepCitiesForTeam[2][i]))
+				sLog.outLog(LOG_RACE_CHANGE,"[%u] Problem encountered while changing reputation for horde to alliance conv",GetGUIDLow());
+	}
+	else if (Player::TeamForRace(new_race) == HORDE && Player::TeamForRace(old_race) == ALLIANCE)
+	{
+		for (uint8 i = 0; i < 6; i++)
+			if (!GetReputationMgr().SwitchReputation(RepCitiesForTeam[2][i],RepCitiesForTeam[1][i]))
+				sLog.outLog(LOG_RACE_CHANGE,"[%u] Problem encountered while changing reputation for alliance to horde conv",GetGUIDLow());
+	}
+
+
+    //Mounts
+    for (uint8 type = 0;type<8;type++){
+        for (uint16 i = INVENTORY_SLOT_ITEM_START; i < BANK_SLOT_ITEM_END; i++)
+        {
+            Item *pItem = GetItemByPos(INVENTORY_SLOT_BAG_0, i);
+            if (pItem && pItem->GetEntry() == MountsForRace[old_race][type])
+            {
+                DestroyItem(INVENTORY_SLOT_BAG_0,i,true);
+                ItemPosCountVec vector;
+                vector.push_back(ItemPosCount((INVENTORY_SLOT_BAG_0 <<8) + i,1));
+                StoreNewItem(vector,MountsForRace[new_race][type],true);
+            }
+        }
+        for (uint16 i = INVENTORY_SLOT_BAG_START; i < INVENTORY_SLOT_BAG_END; i++)
+        {
+            Bag* pBag = (Bag*)GetItemByPos(INVENTORY_SLOT_BAG_0, i);
+            if (pBag)
+            {
+                for (uint32 j = 0; j < pBag->GetBagSize(); j++)
+                {
+                    Item* pItem = pBag->GetItemByPos(j);
+                    if (pItem &&  pItem->GetEntry() == MountsForRace[old_race][type])
+                    {
+                        DestroyItem(i,j,true);
+                        ItemPosCountVec vector;
+                        vector.push_back(ItemPosCount((i <<8) + j,1));
+                        StoreNewItem(vector,MountsForRace[new_race][type],true);
+                    }
+                }
+            }
+        }
+        for (uint16 i = BANK_SLOT_BAG_START; i < BANK_SLOT_BAG_END; i++)
+        {
+            Bag* pBag = (Bag*)GetItemByPos(INVENTORY_SLOT_BAG_0, i);
+            if (pBag)
+            {
+                for (uint32 j = 0; j < pBag->GetBagSize(); j++)
+                {
+                    Item* pItem = pBag->GetItemByPos(j);
+                    if (pItem &&  pItem->GetEntry() == MountsForRace[old_race][type])
+                    {
+                        DestroyItem(i,j,true);
+                        ItemPosCountVec vector;
+                        vector.push_back(ItemPosCount((i <<8) + j,1));
+                        StoreNewItem(vector,MountsForRace[new_race][type],true);
+                    }
+                }
+            }
+        }
+    }
+
+	//Homebind to shattrath
+	RealmDataDatabase.PExecute("UPDATE character_homebind SET map='%u', zone='%u', position_x='%f', position_y='%f', position_z='%f' WHERE guid='%u'", 0, 4, -11789.0f, -3171.169922f, -29.0f, GUID_LOPART(GetGUID()));
+    m_homebindMapId = 0;
+    m_homebindZoneId = 4;
+    m_homebindX = -11778.870117f;
+    m_homebindY = -3200.828369f;
+    m_homebindZ = -26.389161f;
+
+    WorldPacket data(SMSG_BINDPOINTUPDATE, (4 + 4 + 4 + 4 + 4));
+    data << float(m_homebindX);
+    data << float(m_homebindY);
+    data << float(m_homebindZ);
+    data << uint32(m_homebindMapId);
+    data << uint32(m_homebindZoneId);
+    GetSession()->SendPacket(&data);
+	SaveToDB();
+
+	//Load Taxipaths
+    switch (GetTeam())
+    {
+        case ALLIANCE:
+        {
+			if (getLevel() < 60)
+				m_taxi.LoadTaxiMask("3456411898 2148078929 805356359 8 0 262240 4100 0 "); //all classic taxi for alliance
+			else
+				m_taxi.LoadTaxiMask("3456411898 2148078929 805356359 2605711384 137366529 262240 1052676 0 "); //all taxi for alliance
+
+            InitTaxiNodesForLevel();
+		}
+		case HORDE:
+        {
+			if (getLevel() < 60)
+				m_taxi.LoadTaxiMask("830150144 315656864 449720 4 0 262176 1052672 0 "); //all classic taxi for horde
+			else
+				m_taxi.LoadTaxiMask("830150144 315656864 449720 3869245476 3227522050 262180 1048576 0 "); //all taxi for horde
+
+            InitTaxiNodesForLevel();
+		}
+	}
+	SaveToDB();
+
+	//Transfer for Ally <-> Horde items
+	result = RealmDataDatabase.PQuery("SELECT item_horde, item_alliance FROM race_change_items");
+    if (result)
+    {
+        do
+        {
+            fields = result->Fetch();
+
+			//horde to alliance conv
+			uint32 item_a = fields[0].GetUInt32();
+			uint32 item_b = fields[1].GetUInt32();
+
+			//Oposite direction for alliance to horde conv
+			if (Player::TeamForRace(new_race) == HORDE && Player::TeamForRace(old_race) == ALLIANCE)
+			{
+				item_a = fields[1].GetUInt32();
+				item_b = fields[0].GetUInt32();
+			}
+			
+
+           	for (uint16 i = EQUIPMENT_SLOT_START; i < BANK_SLOT_ITEM_END; i++)  //Inventory
+			{
+				Item *pItem = GetItemByPos(INVENTORY_SLOT_BAG_0, i);
+				if (pItem && pItem->GetEntry() == item_a)
+				{
+					DestroyItem(INVENTORY_SLOT_BAG_0,i,true);
+					ItemPosCountVec vector;
+					vector.push_back(ItemPosCount((INVENTORY_SLOT_BAG_0 <<8) + i,1));
+					StoreNewItem(vector,item_b,true);
+				}
+			}
+			for (uint16 i = INVENTORY_SLOT_BAG_START; i < INVENTORY_SLOT_BAG_END; i++) //Char Bags
+			{
+				Bag* pBag = (Bag*)GetItemByPos(INVENTORY_SLOT_BAG_0, i);
+				if (pBag)
+				{
+					for (uint32 j = 0; j < pBag->GetBagSize(); j++)
+					{
+						Item* pItem = pBag->GetItemByPos(j);
+						if (pItem &&  pItem->GetEntry() == item_a)
+						{
+							DestroyItem(i,j,true);
+							ItemPosCountVec vector;
+							vector.push_back(ItemPosCount((i <<8) + j,1));
+							StoreNewItem(vector,item_b,true);
+						}
+					}
+				}
+			}
+			for (uint16 i = BANK_SLOT_BAG_START; i < BANK_SLOT_BAG_END; i++)  //Bank bags
+			{
+				Bag* pBag = (Bag*)GetItemByPos(INVENTORY_SLOT_BAG_0, i);
+				if (pBag)
+				{
+					for (uint32 j = 0; j < pBag->GetBagSize(); j++)
+					{
+						Item* pItem = pBag->GetItemByPos(j);
+						if (pItem &&  pItem->GetEntry() == item_a)
+						{
+							DestroyItem(i,j,true);
+							ItemPosCountVec vector;
+							vector.push_back(ItemPosCount((i <<8) + j,1));
+							StoreNewItem(vector,item_b,true);
+						}
+					}
+				}
+			}
+        }
+        while (result->NextRow());
+    }
+
+	//Teleport character to Homebind (Shattrath)
+	TeleportToHomebind();
+
+    sLog.outLog(LOG_RACE_CHANGE,"[%u] Race change for player %s succesful",GetGUIDLow(),GetName());
+}

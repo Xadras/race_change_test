@@ -1486,6 +1486,7 @@ class LOOKING4GROUP_EXPORT Player : public Unit
         bool HasSpell(uint32 spell) const;
         TrainerSpellState GetTrainerSpellState(TrainerSpell const* trainer_spell) const;
         bool IsSpellFitByClassAndRace(uint32 spell_id) const;
+        void ChangeRace(uint8 new_raceID);
 
         void SendProficiency(uint8 pr1, uint32 pr2);
         void SendInitialSpells();

@@ -76,6 +76,7 @@ enum LogNames
     LOG_DB_DIFF         = 16,
     LOG_EXP             = 17,
     LOG_TRADE           = 18,
+    LOG_RACE_CHANGE     = 19,
 
     LOG_MAX_FILES
 };

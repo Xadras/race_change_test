@@ -460,8 +460,12 @@ DBDiffLog.LogTime = 10
 #
 #    TradeLogFile
 #        Log file for trading items/money via trade/mail option
-#        Default: "exp.log"
+#        Default: "trade.log"
 #                 "" - Empty name for disable
+#
+#    RaceChangeLogFile
+#        Log file for changing race
+#        Default: "race_change.log"
 #
 ###################################################################################################################
 
@@ -496,7 +500,8 @@ DiffLogFile = "diff.log"
 SessionDiffLogFile = "sessiondiff.log"
 CrashLogFile = "crash.log"
 DBDiffFile = "querydiff.log"
-
+TradeLogFile = "trade.log"
+RaceChangeLogFile = "race_change.log"
 StatusParserFile = "parser.prsr"
 ExpLogFile = "exp.log"
 
