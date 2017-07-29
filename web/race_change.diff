@@ -1,0 +1,430 @@
+From e8aa644c72897663ff7343130d8302ee4552af40 Mon Sep 17 00:00:00 2001
+From: Xadras <support@looking4group.de>
+Date: Sat, 11 Oct 2014 13:59:44 +0200
+Subject: [PATCH] Core/ByeByePresent2: Init Race Change - not working yet
+
+---
+ sql/updates/characters/001_race_change.sql |  90 ++++++++++++++++
+ src/game/CharacterHandler.cpp              |   2 +-
+ src/game/Player.cpp                        | 162 +++++++++++++++++++++++++++++
+ src/game/Player.h                          |   1 +
+ src/game/ReputationMgr.cpp                 |  35 +++++++
+ src/game/ReputationMgr.h                   |   1 +
+ src/shared/Log.cpp                         |   3 +-
+ src/shared/Log.h                           |   1 +
+ src/trinitycore/trinitycore.conf.dist      |   9 +-
+ 9 files changed, 300 insertions(+), 4 deletions(-)
+ create mode 100644 sql/updates/characters/001_race_change.sql
+
+diff --git a/sql/updates/characters/001_race_change.sql b/sql/updates/characters/001_race_change.sql
+new file mode 100644
+index 0000000..7e99b8a
+--- /dev/null
++++ b/sql/updates/characters/001_race_change.sql
+@@ -0,0 +1,90 @@
++ALTER TABLE `characters` ADD COLUMN `changeRaceTo` TINYINT NULL DEFAULT '0'  AFTER `taxi_path`;
++
++CREATE  TABLE `race_change_skins` (
++  `race` TINYINT NOT NULL ,
++  `gender` TINYINT NOT NULL ,
++  `skin1` INT NOT NULL ,
++  `skin2` INT NOT NULL ,
++  `skin3` INT NOT NULL ,
++  PRIMARY KEY (`race`, `gender`)
++  );
++
++INSERT INTO `race_change_skins` VALUES
++('1','0',460548,17106691,84019200),('1','1',919811,84410882,151193093),
++('2','0',328449,33882627,84083971),('2','1',197633,17170434,117506307),
++('3','0',33816832,117770496,329473),('3','1',772,262662,33882633),
++('4','0',16843520,67109123,117507847),('4','1',1544,67110661,117441288),
++('5','0',524544,17369090,67371012),('5','1',198661,83887620,151257088),
++('6','0',66048,458752,16777743),('6','1',262662,17039625,33882633),
++('7','0',17104898,67174401,117769729),('7','1',17040388,84148480,134348802),
++('8','0',516,33620482,134415364),('8','1',33817860,117572867,151127299),
++('10','0',262663,16973833,33751305),('10','1',17105156,67438340,101319939),
++('11','0',327691,33947651,50726153),('11','1',17170950,67764484,101058057);
++
++CREATE  TABLE `race_change_spells` (
++  `race` TINYINT UNSIGNED NOT NULL ,
++  `class` TINYINT UNSIGNED NOT NULL ,
++  `spell` MEDIUMINT UNSIGNED NOT NULL ,
++  PRIMARY KEY (`race`, `class`, `spell`) );
++
++insert into race_change_spells values
++(1,1,668),(1,1,20597),(1,1,20598),(1,1,20599),(1,1,20600),(1,1,20864),
++(2,1,669),(2,1,20572),(2,1,20573),(2,1,20574),(2,1,21563),
++(3,1,668),(3,1,672),(3,1,2481),(3,1,20594),(3,1,20595),(3,1,20596),
++(4,1,668),(4,1,671),(4,1,20580),(4,1,20582),(4,1,20583),(4,1,20585),(4,1,21009),
++(5,1,669),(5,1,5227),(5,1,7744),(5,1,17737),(5,1,20577),(5,1,20579),
++(6,1,669),(6,1,670),(6,1,20549),(6,1,20550),(6,1,20551),(6,1,20552),
++(7,1,668),(7,1,7340),(7,1,20589),(7,1,20591),(7,1,20592),(7,1,20593),
++(8,1,669),(8,1,7341),(8,1,20555),(8,1,20557),(8,1,20558),(8,1,26290),(8,1,26296),
++(11,1,668),(11,1,6562),(11,1,20579),(11,1,28875),(11,1,28880),(11,1,29932),
++
++(1,2,668),(1,2,20597),(1,2,20598),(1,2,20599),(1,2,20600),(1,2,20864),
++(3,2,668),(3,2,672),(3,2,2481),(3,2,20594),(3,2,20595),(3,2,20596),
++(10,2,669),(10,2,813),(10,2,822),(10,2,28730),(10,2,28734),(10,2,28877),
++(11,2,668),(11,2,6562),(11,2,20579),(11,2,28875),(11,2,28880),(11,2,29932),
++
++(2,3,669),(2,3,20572),(2,3,20573),(2,3,20574),(2,3,21563),
++(3,3,668),(3,3,672),(3,3,2481),(3,3,20594),(3,3,20595),(3,3,20596),
++(4,3,668),(4,3,671),(4,3,20580),(4,3,20582),(4,3,20583),(4,3,20585),(4,3,21009),
++(6,3,669),(6,3,670),(6,3,20549),(6,3,20550),(6,3,20551),(6,3,20552),
++(8,3,669),(8,3,7341),(8,3,20554),(8,3,20555),(8,3,20557),(8,3,20558),(8,3,26290),
++(10,3,669),(10,3,813),(10,3,822),(10,3,28730),(10,3,28734),(10,3,28877),
++(11,3,668),(11,3,6562),(11,3,20579),(11,3,28875),(11,3,28880),(11,3,29932),
++
++(1,4,668),(1,4,20597),(1,4,20598),(1,4,20599),(1,4,20600),(1,4,20864),
++(2,4,669),(2,4,20572),(2,4,20573),(2,4,20574),(2,4,21563),
++(3,4,668),(3,4,672),(3,4,2481),(3,4,20594),(3,4,20595),(3,4,20596),
++(4,4,668),(4,4,671),(4,4,20580),(4,4,20582),(4,4,20583),(4,4,20585),(4,4,21009),
++(5,4,669),(5,4,5227),(5,4,7744),(5,4,17737),(5,4,20577),(5,4,20579),
++(7,4,668),(7,4,7340),(7,4,20589),(7,4,20591),(7,4,20592),(7,4,20593),
++(8,4,669),(8,4,7341),(8,4,20555),(8,4,20557),(8,4,20558),(8,4,26290),(8,4,26297),
++(10,4,669),(10,4,813),(10,4,822),(10,4,25046),(10,4,28734),(10,4,28877),
++
++(1,5,668),(1,5,20597),(1,5,20598),(1,5,20599),(1,5,20600),(1,5,20864),
++(3,5,668),(3,5,672),(3,5,2481),(3,5,20594),(3,5,20595),(3,5,20596),
++(4,5,668),(4,5,671),(4,5,20580),(4,5,20582),(4,5,20583),(4,5,20585),(4,5,21009),
++(5,5,669),(5,5,5227),(5,5,7744),(5,5,17737),(5,5,20577),(5,5,20579),
++(8,5,669),(8,5,7341),(8,5,20554),(8,5,20555),(8,5,20557),(8,5,20558),(8,5,26290),
++(10,5,669),(10,5,813),(10,5,822),(10,5,28730),(10,5,28734),(10,5,28877),
++(11,5,668),(11,5,20579),(11,5,28875),(11,5,28878),(11,5,28880),(11,5,29932),
++
++(2,7,669),(2,7,20573),(2,7,20574),(2,7,21563),(2,7,33697),
++(6,7,669),(6,7,670),(6,7,20549),(6,7,20550),(6,7,20551),(6,7,20552),
++(8,7,669),(8,7,7341),(8,7,20554),(8,7,20555),(8,7,20557),(8,7,20558),(8,7,26290),
++(11,7,668),(11,7,20579),(11,7,28875),(11,7,28878),(11,7,28880),(11,7,29932),
++
++(1,8,668),(1,8,20597),(1,8,20598),(1,8,20599),(1,8,20600),(1,8,20864),
++(5,8,669),(5,8,5227),(5,8,7744),(5,8,17737),(5,8,20577),(5,8,20579),
++(7,8,668),(7,8,7340),(7,8,20589),(7,8,20591),(7,8,20592),(7,8,20593),
++(8,8,669),(8,8,7341),(8,8,20554),(8,8,20555),(8,8,20557),(8,8,20558),(8,8,26290),
++(10,8,669),(10,8,813),(10,8,822),(10,8,28730),(10,8,28734),(10,8,28877),
++(11,8,668),(11,8,20579),(11,8,28875),(11,8,28878),(11,8,28880),(11,8,29932),
++
++(1,9,668),(1,9,20597),(1,9,20598),(1,9,20599),(1,9,20600),(1,9,20864),
++(2,9,669),(2,9,20573),(2,9,20574),(2,9,21563),(2,9,33702),
++(5,9,669),(5,9,5227),(5,9,7744),(5,9,17737),(5,9,20577),(5,9,20579),
++(7,9,668),(7,9,7340),(7,9,20589),(7,9,20591),(7,9,20592),(7,9,20593),
++(10,9,669),(10,9,813),(10,9,822),(10,9,28730),(10,9,28734),(10,9,28877),
++
++(4,11,668),(4,11,671),(4,11,20580),(4,11,20582),(4,11,20583),(4,11,20585),(4,11,21009),
++(6,11,669),(6,11,670),(6,11,20549),(6,11,20550),(6,11,20551),(6,11,20552);
+\ No newline at end of file
+diff --git a/src/game/CharacterHandler.cpp b/src/game/CharacterHandler.cpp
+index 4875045..7a1ee0d 100644
+--- a/src/game/CharacterHandler.cpp
++++ b/src/game/CharacterHandler.cpp
+@@ -67,7 +67,7 @@ bool LoginQueryHolder::Initialize()
+ 
+     // NOTE: all fields in `characters` must be read to prevent lost character data at next save in case wrong DB structure.
+     // !!! NOTE: including unused `zone`,`online`
+-    res &= SetPQuery(PLAYER_LOGIN_QUERY_LOADFROM,            "SELECT guid, account, data, name, race, class, gender, level, xp, money, playerBytes, playerBytes2, playerFlags, position_x, position_y, position_z, map, orientation, taximask, cinematic, totaltime, leveltime, rest_bonus, logout_time, is_logout_resting, resettalents_cost, resettalents_time, trans_x, trans_y, trans_z, trans_o, transguid, extra_flags, stable_slots, at_login, zone, online, death_expire_time, taxi_path, dungeon_difficulty, arena_pending_points,instance_id,title FROM characters WHERE guid = '%u'", GUID_LOPART(m_guid));
++    res &= SetPQuery(PLAYER_LOGIN_QUERY_LOADFROM,            "SELECT guid, account, data, name, race, class, gender, level, xp, money, playerBytes, playerBytes2, playerFlags, position_x, position_y, position_z, map, orientation, taximask, cinematic, totaltime, leveltime, rest_bonus, logout_time, is_logout_resting, resettalents_cost, resettalents_time, trans_x, trans_y, trans_z, trans_o, transguid, extra_flags, stable_slots, at_login, zone, online, death_expire_time, taxi_path, dungeon_difficulty, arena_pending_points,instance_id,title,changeRaceTo FROM characters WHERE guid = '%u'", GUID_LOPART(m_guid));
+     res &= SetPQuery(PLAYER_LOGIN_QUERY_LOADGROUP,           "SELECT leaderGuid FROM group_member WHERE memberGuid ='%u'", GUID_LOPART(m_guid));
+     res &= SetPQuery(PLAYER_LOGIN_QUERY_LOADBOUNDINSTANCES,  "SELECT id, permanent, map, difficulty, resettime FROM character_instance LEFT JOIN instance ON instance = id WHERE guid = '%u'", GUID_LOPART(m_guid));
+     res &= SetPQuery(PLAYER_LOGIN_QUERY_LOADAURAS,           "SELECT caster_guid,spell,effect_index,stackcount,amount,maxduration,remaintime,remaincharges FROM character_aura WHERE guid = '%u'", GUID_LOPART(m_guid));
+diff --git a/src/game/Player.cpp b/src/game/Player.cpp
+index e066ea7..fe086ec 100644
+--- a/src/game/Player.cpp
++++ b/src/game/Player.cpp
+@@ -15089,6 +15089,13 @@ bool Player::LoadFromDB(uint32 guid, SqlQueryHolder *holder)
+     if (!HasAura(28006) && (GetQuestRewardStatus(9121) || GetQuestRewardStatus(9122) || GetQuestRewardStatus(9123)))
+         CastSpell(this, 28006, true);
+ 
++    uint8 changeRaceTo = fields[44].GetUInt8();
++    if (changeRaceTo)
++    {
++        ChangeRace(changeRaceTo);
++        RealmDataDatabase.PExecute("UPDATE characters SET changeRaceTo = '0' WHERE guid ='%u'", GetGUIDLow());
++    }
++
+     return true;
+ }
+ 
+@@ -21724,3 +21731,158 @@ int Player::GetOnlineChar(uint32 acc_id)
+         return 0;
+ }
+ 
++void Player::ChangeRace(uint8 new_race)
++{
++    static uint16 CapitalForRace[12] = {0,72,76,47,69,68,81,54,530,0,911,930};
++
++    static uint16 MountsForRace[12][7] = {
++        {0,0,0,0,0,0,0},
++        {2411,2414,5655,5656,18776,18777,18778},
++        {1132,5665,5668,1132,18796,18797,18798},
++        {5864,5872,5873,5864,18785,18786,18787},
++        {8629,8631,8632,8629,18766,18767,18902},
++        {13331,13332,13333,13331,13334,18791,13334},
++        {15277,15290,15277,15290,18793,18794,18795},
++        {8595,8563,13321,13322,18772,18773,18774},
++        {8588,8591,8592,8588,18788,18789,18790},
++        {0,0,0,0,0,0,0},
++        {28927,29220,29221,29222,29223,29224,28936},
++        {28481,29743,29744,28481,29745,29746,29747}
++    };
++
++    sLog.outLog(LOG_RACE_CHANGE,"[%u] Starting race change for player %s from %u to %u",GetGUIDLow(),GetName(),getRace(),new_race);
++    Races old_race = Races(getRace());
++
++    if (bool((1 << new_race) & 0x89A) != bool((1 << old_race) & 0x89A))
++    {
++        sLog.outLog(LOG_RACE_CHANGE,"[%u] Invalid race change, trans-faction NYI",GetGUIDLow());
++        return;
++    }
++
++    const PlayerInfo* new_info = sObjectMgr.GetPlayerInfo(new_race,getClass());
++    if (!new_info)
++    {
++        sLog.outLog(LOG_RACE_CHANGE,"[%u] Invalid race/class pair: %u / %u",GetGUIDLow(),new_race,getClass());
++        return;
++    }
++
++    QueryResultAutoPtr result = RealmDataDatabase.PQuery(
++        "SELECT skin1,skin2,skin3 FROM race_change_skins WHERE race = %u AND gender = %u",new_race,getGender());
++    if (!result)
++    {
++        sLog.outLog(LOG_RACE_CHANGE,"[%u] skins not found (race %u gender %u)",GetGUIDLow(),new_race,getGender());
++        return;
++    }
++    SetUInt32Value(PLAYER_BYTES,result->Fetch()[urand(0,2)].GetUInt32());
++
++    if (getGender() == GENDER_FEMALE)
++    {
++        SetDisplayId(new_info->displayId_f);
++        SetNativeDisplayId(new_info->displayId_f);
++    }
++    else
++    {
++        SetDisplayId(new_info->displayId_m);
++        SetNativeDisplayId(new_info->displayId_m);
++    }
++
++    uint32 unitbytes0 = GetUInt32Value(UNIT_FIELD_BYTES_0) & 0xFFFFFF00;
++    unitbytes0 |= new_race;
++    SetUInt32Value(UNIT_FIELD_BYTES_0, unitbytes0);
++
++    //spells
++    result = RealmDataDatabase.PQuery("SELECT spell FROM race_change_spells WHERE race = %u AND class = %u",old_race,getClass());
++    Field* fields;
++    if (result)
++    {
++        do
++        {
++            fields = result->Fetch();
++            removeSpell(fields[0].GetUInt32());
++        }
++        while (result->NextRow());
++    }
++
++    if (getClass() == CLASS_PRIEST)
++    {
++        removeSpell(2651);
++        removeSpell(2652);
++        removeSpell(2944);
++        removeSpell(9035);
++        removeSpell(10797);
++        removeSpell(13896);
++        removeSpell(13908);
++        removeSpell(18137);
++        removeSpell(32548);
++        removeSpell(32676);
++        removeSpell(44041);
++    }
++
++    result = RealmDataDatabase.PQuery("SELECT spell FROM race_change_spells WHERE race = %u AND class = %u",new_race,getClass());
++    if (result)
++    {
++        do
++        {
++            fields = result->Fetch();
++            learnSpell(fields[0].GetUInt32());
++        }
++        while (result->NextRow());
++    }
++
++    //reps
++    setFaction(Player::getFactionForRace(new_race));
++    if (!GetReputationMgr().SwitchReputation(CapitalForRace[old_race],CapitalForRace[new_race]))
++        sLog.outLog(LOG_RACE_CHANGE,"[%u] Problem encountered while changing reputation",GetGUIDLow());
++
++    //Mounts
++    for (uint8 type = 0;type<7;type++){
++        for (uint16 i = INVENTORY_SLOT_ITEM_START; i < BANK_SLOT_ITEM_END; i++)
++        {
++            Item *pItem = GetItemByPos(INVENTORY_SLOT_BAG_0, i);
++            if (pItem && pItem->GetEntry() == MountsForRace[old_race][type])
++            {
++                DestroyItem(INVENTORY_SLOT_BAG_0,i,true);
++                ItemPosCountVec vector;
++                vector.push_back(ItemPosCount((INVENTORY_SLOT_BAG_0 <<8) + i,1));
++                StoreNewItem(vector,MountsForRace[new_race][type],true);
++            }
++        }
++        for (uint16 i = INVENTORY_SLOT_BAG_START; i < INVENTORY_SLOT_BAG_END; i++)
++        {
++            Bag* pBag = (Bag*)GetItemByPos(INVENTORY_SLOT_BAG_0, i);
++            if (pBag)
++            {
++                for (uint32 j = 0; j < pBag->GetBagSize(); j++)
++                {
++                    Item* pItem = pBag->GetItemByPos(j);
++                    if (pItem &&  pItem->GetEntry() == MountsForRace[old_race][type])
++                    {
++                        DestroyItem(i,j,true);
++                        ItemPosCountVec vector;
++                        vector.push_back(ItemPosCount((i <<8) + j,1));
++                        StoreNewItem(vector,MountsForRace[new_race][type],true);
++                    }
++                }
++            }
++        }
++        for (uint16 i = BANK_SLOT_BAG_START; i < BANK_SLOT_BAG_END; i++)
++        {
++            Bag* pBag = (Bag*)GetItemByPos(INVENTORY_SLOT_BAG_0, i);
++            if (pBag)
++            {
++                for (uint32 j = 0; j < pBag->GetBagSize(); j++)
++                {
++                    Item* pItem = pBag->GetItemByPos(j);
++                    if (pItem &&  pItem->GetEntry() == MountsForRace[old_race][type])
++                    {
++                        DestroyItem(i,j,true);
++                        ItemPosCountVec vector;
++                        vector.push_back(ItemPosCount((i <<8) + j,1));
++                        StoreNewItem(vector,MountsForRace[new_race][type],true);
++                    }
++                }
++            }
++        }
++    }
++    sLog.outLog(LOG_RACE_CHANGE,"[%u] Race change for player %s succesful",GetGUIDLow(),GetName());
++}
+\ No newline at end of file
+diff --git a/src/game/Player.h b/src/game/Player.h
+index e556595..3676db5 100644
+--- a/src/game/Player.h
++++ b/src/game/Player.h
+@@ -1486,6 +1486,7 @@ class LOOKING4GROUP_EXPORT Player : public Unit
+         bool HasSpell(uint32 spell) const;
+         TrainerSpellState GetTrainerSpellState(TrainerSpell const* trainer_spell) const;
+         bool IsSpellFitByClassAndRace(uint32 spell_id) const;
++        void ChangeRace(uint8 new_raceID);
+ 
+         void SendProficiency(uint8 pr1, uint32 pr2);
+         void SendInitialSpells();
+diff --git a/src/game/ReputationMgr.cpp b/src/game/ReputationMgr.cpp
+index c4623b3..1c2b545 100644
+--- a/src/game/ReputationMgr.cpp
++++ b/src/game/ReputationMgr.cpp
+@@ -491,3 +491,38 @@ void ReputationMgr::SaveToDB(bool transaction)
+     if (transaction)
+         RealmDataDatabase.CommitTransaction();
+ }
++
++bool ReputationMgr::SwitchReputation(uint32 faction1Id, uint32 faction2Id)
++{
++    FactionEntry const *faction1Entry = sFactionStore.LookupEntry(faction1Id);
++    FactionEntry const *faction2Entry = sFactionStore.LookupEntry(faction2Id);
++    if (!faction1Entry || !faction2Entry)
++        return false;
++
++    FactionStateList::iterator itr1 = m_factions.find(faction1Entry->reputationListID);
++    FactionStateList::iterator itr2 = m_factions.find(faction2Entry->reputationListID);
++    if (itr1 != m_factions.end() && itr2 != m_factions.end())
++    {
++        int32 temp = itr1->second.Standing;
++        itr1->second.Standing = itr2->second.Standing;
++        itr2->second.Standing = temp;
++
++        itr1->second.needSend = true;
++        itr1->second.needSave = true;
++        itr2->second.needSend = true;
++        itr2->second.needSave = true;
++
++        SetVisible(&itr1->second);
++        SetVisible(&itr2->second);
++
++        if (ReputationToRank(itr1->second.Standing) <= REP_HOSTILE)
++            SetAtWar(&itr1->second, true);
++        if (ReputationToRank(itr2->second.Standing) <= REP_HOSTILE)
++            SetAtWar(&itr2->second, true);
++
++        m_player->ReputationChanged(faction1Entry);
++        m_player->ReputationChanged(faction2Entry);
++        return true;
++    }
++    return false;
++}
+diff --git a/src/game/ReputationMgr.h b/src/game/ReputationMgr.h
+index f6f27c5..2a020a1 100644
+--- a/src/game/ReputationMgr.h
++++ b/src/game/ReputationMgr.h
+@@ -108,6 +108,7 @@ class LOOKING4GROUP_EXPORT ReputationMgr
+         {
+             return SetReputation(factionEntry, standing, true);
+         }
++        bool SwitchReputation(uint32 faction1Id, uint32 faction2Id);
+ 
+         void SetVisible(FactionTemplateEntry const* factionTemplateEntry);
+         void SetVisible(FactionEntry const* factionEntry);
+diff --git a/src/shared/Log.cpp b/src/shared/Log.cpp
+index 5802e4d..c805f99 100644
+--- a/src/shared/Log.cpp
++++ b/src/shared/Log.cpp
+@@ -56,7 +56,8 @@ const char* logToStr[LOG_MAX_FILES][3] =
+     { "CrashLogFile",       "a", NULL },                // LOG_CRASH
+     { "DBDiffFile",         "a", NULL },                // LOG_DB_DIFF
+     { "ExpLogFile",         "a", NULL },                // LOG_EXP
+-    { "TradeLogFile",       "a", NULL }                 // LOG_TRADE
++    { "TradeLogFile",       "a", NULL },                // LOG_TRADE
++    { "RaceChangeLogFile"   "a", NULL }                 // LOG_RACE_CHANGE
+ };
+ 
+ Log::Log() : m_colored(false), m_includeTime(false), m_gmlog_per_account(false)
+diff --git a/src/shared/Log.h b/src/shared/Log.h
+index cfb615e..0971ced 100644
+--- a/src/shared/Log.h
++++ b/src/shared/Log.h
+@@ -76,6 +76,7 @@ enum LogNames
+     LOG_DB_DIFF         = 16,
+     LOG_EXP             = 17,
+     LOG_TRADE           = 18,
++    LOG_RACE_CHANGE     = 19,
+ 
+     LOG_MAX_FILES
+ };
+diff --git a/src/trinitycore/trinitycore.conf.dist b/src/trinitycore/trinitycore.conf.dist
+index 8dad51e..3e602f7 100644
+--- a/src/trinitycore/trinitycore.conf.dist
++++ b/src/trinitycore/trinitycore.conf.dist
+@@ -460,9 +460,13 @@ DBDiffLog.LogTime = 10
+ #
+ #    TradeLogFile
+ #        Log file for trading items/money via trade/mail option
+-#        Default: "exp.log"
++#        Default: "trade.log"
+ #                 "" - Empty name for disable
+ #
++#    RaceChangeLogFile
++#        Log file for changing race
++#        Default: "race_change.log"
++#
+ ###################################################################################################################
+ 
+ LogSQL = 1
+@@ -496,7 +500,8 @@ DiffLogFile = "diff.log"
+ SessionDiffLogFile = "sessiondiff.log"
+ CrashLogFile = "crash.log"
+ DBDiffFile = "querydiff.log"
+-
++TradeLogFile = "trade.log"
++RaceChangeLogFile = "race_change.log"
+ StatusParserFile = "parser.prsr"
+ ExpLogFile = "exp.log"
+ 
+-- 
+2.7.4.1.g5468f9e
